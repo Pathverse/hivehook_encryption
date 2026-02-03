@@ -1,0 +1,17 @@
+name: hivehook_encryption
+description: "AES encryption plugin for Hivehook"
+version: 1.0.0-alpha.1
+homepage: https://github.com/Pathverse/hivehook_encryption
+repository: https://github.com/Pathverse/hivehook_encryption
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  pointycastle: ^3.9.1
+  hihook: ^0.1.0
+
+dev_dependencies:
+  test: ^1.28.0
+  lints: ^5.0.0
+

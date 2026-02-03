@@ -1,0 +1,11 @@
+{
+  "name": "Encryption Demo",
+  "short_name": "EncDemo",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#6750a4",
+  "description": "Hivehook Encryption Demo with flutter_secure_storage",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false
+}
