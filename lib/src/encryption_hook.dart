@@ -20,8 +20,8 @@ enum EncryptionAlgorithm {
 
 /// Creates an encryption hook for write operations.
 ///
-/// Encrypts payload string values before storage using AES-256.
-/// Non-string values pass through unchanged.
+/// Encrypts payload values before storage using AES-256.
+/// Values are JSON-encoded before encryption to handle any JSON-serializable type.
 ///
 /// ## Parameters
 ///
@@ -34,15 +34,15 @@ enum EncryptionAlgorithm {
 ///
 /// ## Payload Transformation
 ///
-/// - String → Base64(encrypted bytes)
-/// - Other types → passed through unchanged
+/// - Any JSON-serializable value → Base64(encrypted JSON)
+/// - null → passed through unchanged
 ///
 /// ## Example
 ///
 /// ```dart
 /// engine.register(encryptHook(key: myBase64Key));
 ///
-/// // Input: HiPayload(key: 'data', value: 'secret')
+/// // Input: HiPayload(key: 'data', value: {'secret': 'value'})
 /// // Output: HiPayload(key: 'data', value: 'base64EncodedEncryptedData')
 /// ```
 HiHook<dynamic, dynamic> encryptHook({
@@ -63,14 +63,18 @@ HiHook<dynamic, dynamic> encryptHook({
     handler: (payload, ctx) {
       final value = payload.value;
 
-      if (value is! String) {
+      // Pass through null unchanged
+      if (value == null) {
         return const HiContinue();
       }
 
       try {
+        // JSON encode the value first (handles any JSON-serializable type)
+        final jsonString = jsonEncode(value);
+
         final encrypted = switch (algorithm) {
-          EncryptionAlgorithm.cbc => AesCbc.encrypt(value, keyBytes),
-          EncryptionAlgorithm.gcm => AesGcm.encrypt(value, keyBytes),
+          EncryptionAlgorithm.cbc => AesCbc.encrypt(jsonString, keyBytes),
+          EncryptionAlgorithm.gcm => AesGcm.encrypt(jsonString, keyBytes),
         };
 
         return HiContinue(
@@ -89,8 +93,8 @@ HiHook<dynamic, dynamic> encryptHook({
 
 /// Creates a decryption hook for read operations.
 ///
-/// Decrypts payload string values after reading from storage.
-/// Expects base64-encoded encrypted data. Non-string values pass through.
+/// Decrypts payload values after reading from storage.
+/// Expects base64-encoded encrypted JSON. Returns the original JSON-decoded value.
 ///
 /// ## Parameters
 ///
@@ -103,14 +107,16 @@ HiHook<dynamic, dynamic> encryptHook({
 ///
 /// ## Payload Transformation
 ///
-/// - Base64(encrypted bytes) → Original string
+/// - Base64(encrypted JSON) → Original JSON-decoded value
+/// - null → passed through unchanged
 /// - Non-string values → passed through unchanged
 ///
 /// ## Error Handling
 ///
-/// Returns [HiAbort] if:
+/// Returns [HiPanic] if:
 /// - Base64 decoding fails
 /// - Decryption fails (wrong key, corrupted data)
+/// - JSON decoding fails
 ///
 /// ## Example
 ///
@@ -118,7 +124,7 @@ HiHook<dynamic, dynamic> encryptHook({
 /// engine.register(decryptHook(key: myBase64Key));
 ///
 /// // Input: HiPayload(key: 'data', value: 'base64EncodedEncryptedData')
-/// // Output: HiPayload(key: 'data', value: 'secret')
+/// // Output: HiPayload(key: 'data', value: {'secret': 'value'})
 /// ```
 HiHook<dynamic, dynamic> decryptHook({
   String uid = 'encryption:decrypt',
@@ -138,6 +144,12 @@ HiHook<dynamic, dynamic> decryptHook({
     handler: (payload, ctx) {
       final value = payload.value;
 
+      // Pass through null unchanged
+      if (value == null) {
+        return const HiContinue();
+      }
+
+      // Non-string values pass through (shouldn't happen in normal flow)
       if (value is! String) {
         return const HiContinue();
       }
@@ -145,15 +157,18 @@ HiHook<dynamic, dynamic> decryptHook({
       try {
         final encrypted = base64.decode(value);
 
-        final decrypted = switch (algorithm) {
+        final decryptedJson = switch (algorithm) {
           EncryptionAlgorithm.cbc => AesCbc.decrypt(encrypted, keyBytes),
           EncryptionAlgorithm.gcm => AesGcm.decrypt(encrypted, keyBytes),
         };
 
+        // JSON decode to restore original value type
+        final decryptedValue = jsonDecode(decryptedJson);
+
         return HiContinue(
           payload: HiPayload(
             key: payload.key,
-            value: decrypted,
+            value: decryptedValue,
             metadata: payload.metadata,
           ),
         );

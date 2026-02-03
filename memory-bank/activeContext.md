@@ -1,53 +1,56 @@
 # Active Context: HiveHook Encryption
 
-## Current Status: ✅ Complete
+## Current Status: ✅ Complete - Caching Feature Implemented
 
-Package is working and validated with a real hivehook integration example.
+### Feature: Internal Decryption Cache
 
-### What Was Fixed
+**Goal:** Avoid re-decrypting values on repeated reads.
 
-1. **Removed Flutter dependencies** - Package is now pure Dart
-2. **Fixed hivehook read flow** - `HHive.get()` now loads value before hooks
+**Implementation Complete:**
+- Cache lives in `EncryptionPlugin` instance (one per env)
+- `enableCache: true` by default (opt-in style, default on)
+- `maxCacheSize: 1000` default limit with LRU eviction
+- Invalidation on `write`, `delete` and `clear` events
 
-### HiveHook Fix Details
+**Hook Flow:**
 
-The issue was in [hivehook/lib/src/hhive.dart](../hivehook/lib/src/hhive.dart) - the `get()` method was:
-- Emitting 'read' event with `value: null`
-- Reading from store AFTER hooks
-- Post-phase hooks (like decryptHook) couldn't transform the value
+| Event | Cache Action |
+|-------|-------------|
+| `write/put` | Invalidate that key, then encrypt |
+| `read/get` | Return cached if exists, else decrypt & cache (LRU evict if full) |
+| `delete` | Remove key from cache |
+| `clear` | Clear entire cache |
 
-**Fix**: Read from store FIRST, then pass the stored value through the hook pipeline.
-
+**API:**
 ```dart
-// BEFORE (broken):
-final payload = HiPayload(key: key, value: null);
-await engine.emit('read', payload);
-final value = await _store.get(key);  // read AFTER hooks
-return value;
+// Default: caching enabled, max 1000 entries
+final plugin = EncryptionPlugin(key: myKey);
 
-// AFTER (fixed):
-final storedValue = await _store.get(key);  // read FIRST
-final payload = HiPayload(key: key, value: storedValue);
-final result = await engine.emit('read', payload);
-return result.payload?.value ?? storedValue;  // use transformed value
+// Custom cache size
+final plugin = EncryptionPlugin(key: myKey, maxCacheSize: 500);
+
+// Disable caching
+final plugin = EncryptionPlugin(key: myKey, enableCache: false);
+
+// Manual cache operations
+plugin.cacheSize; // Get current size
+plugin.clearCache(); // Clear manually
 ```
 
-## Example Working
+### JSON Encoding in Hooks
 
-```bash
-$ dart run example/example.dart
+Encryption hooks use JSON encode/decode for any JSON-serializable type:
+- `encryptHook`: `jsonEncode(value)` → encrypt → base64
+- `decryptHook`: base64 → decrypt → `jsonDecode()`
 
---- Write Operation ---
-Original value: "Hello, encrypted world!"
+## Test Summary
 
---- Raw Storage (encrypted) ---
-Raw stored value: "n4GKxwlL7ffK80V78kSb5k..."
-
---- Read Operation ---
-Decrypted value: "Hello, encrypted world!"
-
-Match: ✓ YES
-```
+| Test File | Count |
+|-----------|-------|
+| encryption_plugin_test | 28 |
+| encryption_hook_test | (updated for JSON encoding) |
+| algorithms, exceptions, key_utils | ... |
+| **Total** | **100 passing** |
 
 ## Package Summary
 
@@ -56,13 +59,13 @@ Match: ✓ YES
 | Type | Pure Dart hihook plugin |
 | Pattern | Follows Base64Plugin |
 | Algorithms | AES-256-CBC, AES-256-GCM |
-| Tests | 86 passing |
-| Example | Working with hivehook |
+| Caching | LRU with configurable size |
+| Tests | 100 passing |
 
 ## Usage
 
 ```dart
-// Create plugin
+// Create plugin (caching enabled by default)
 final plugin = EncryptionPlugin.generate();
 // Store key securely: plugin.key
 
@@ -76,5 +79,5 @@ await HHiveCore.initialize();
 // Use normally - encryption is automatic
 final hive = await HHive.create('my-env');
 await hive.put('secret', 'my-password');
-final value = await hive.get<String>('secret'); // 'my-password'
+final value = await hive.get<String>('secret'); // 'my-password' (cached after first read)
 ```

@@ -1,6 +1,6 @@
 name: hivehook_encryption
 description: "AES encryption plugin for Hivehook"
-version: 1.0.0-alpha.1
+version: 1.0.0-alpha.2
 homepage: https://github.com/Pathverse/hivehook_encryption
 repository: https://github.com/Pathverse/hivehook_encryption
 

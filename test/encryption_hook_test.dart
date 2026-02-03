@@ -72,7 +72,7 @@ void main() {
       expect((continueResult.payload!.value as String).isNotEmpty, isTrue);
     });
 
-    test('passes through non-string values unchanged', () {
+    test('encrypts non-string JSON-serializable values', () {
       final hook = encryptHook(key: testKey);
       final payload = HiPayload(key: 'test', value: 12345);
       final ctx = _MockContext();
@@ -81,8 +81,12 @@ void main() {
 
       expect(result, isA<HiContinue>());
       final continueResult = result as HiContinue;
-      // Should pass through unchanged (no payload modification)
-      expect(continueResult.payload, isNull);
+      // Non-string values are now JSON-encoded and encrypted
+      expect(continueResult.payload, isNotNull);
+      expect(continueResult.payload!.value, isA<String>());
+      // Should be valid base64
+      expect(() => base64.decode(continueResult.payload!.value as String),
+          returnsNormally);
     });
 
     test('passes through null values unchanged', () {
@@ -160,8 +164,9 @@ void main() {
     });
 
     test('decrypts encrypted string payload value', () {
-      // First encrypt
-      final encrypted = AesCbc.encrypt('hello world', keyBytes);
+      // First encrypt with JSON encoding (as the hook now does)
+      final jsonEncoded = jsonEncode('hello world');
+      final encrypted = AesCbc.encrypt(jsonEncoded, keyBytes);
       final encryptedBase64 = base64.encode(encrypted);
 
       final hook = decryptHook(key: testKey);
@@ -177,7 +182,8 @@ void main() {
     });
 
     test('decrypts empty string correctly', () {
-      final encrypted = AesCbc.encrypt('', keyBytes);
+      final jsonEncoded = jsonEncode('');
+      final encrypted = AesCbc.encrypt(jsonEncoded, keyBytes);
       final encryptedBase64 = base64.encode(encrypted);
 
       final hook = decryptHook(key: testKey);
@@ -216,7 +222,8 @@ void main() {
     });
 
     test('preserves payload metadata', () {
-      final encrypted = AesCbc.encrypt('secret', keyBytes);
+      final jsonEncoded = jsonEncode('secret');
+      final encrypted = AesCbc.encrypt(jsonEncoded, keyBytes);
       final encryptedBase64 = base64.encode(encrypted);
 
       final hook = decryptHook(key: testKey);
@@ -235,7 +242,8 @@ void main() {
     });
 
     test('decrypts GCM encrypted data when specified', () {
-      final encrypted = AesGcm.encrypt('hello', keyBytes);
+      final jsonEncoded = jsonEncode('hello');
+      final encrypted = AesGcm.encrypt(jsonEncoded, keyBytes);
       final encryptedBase64 = base64.encode(encrypted);
 
       final hook = decryptHook(
