@@ -84,6 +84,18 @@ class EncryptionPlugin {
   /// Default is 1000 entries.
   final int maxCacheSize;
 
+  /// Handlers called on successful decryption.
+  ///
+  /// Each handler receives the key and decrypted value.
+  /// Called after decryption succeeds, before caching.
+  final List<void Function(String? key, dynamic value)> onDecryptSuccess;
+
+  /// Handlers called on decryption failure.
+  ///
+  /// Each handler receives the key and the error.
+  /// Called when decryption fails (invalid data, wrong key, etc.).
+  final List<void Function(String? key, Object error)> onDecryptFailure;
+
   /// Internal cache for decrypted values.
   final Map<String, dynamic> _cache = {};
 
@@ -100,6 +112,8 @@ class EncryptionPlugin {
     this.enableDecrypt = true,
     this.enableCache = true,
     this.maxCacheSize = 1000,
+    this.onDecryptSuccess = const [],
+    this.onDecryptFailure = const [],
   });
 
   /// Creates an encryption plugin with an auto-generated key.
@@ -114,6 +128,8 @@ class EncryptionPlugin {
     bool enableDecrypt = true,
     bool enableCache = true,
     int maxCacheSize = 1000,
+    List<void Function(String? key, dynamic value)> onDecryptSuccess = const [],
+    List<void Function(String? key, Object error)> onDecryptFailure = const [],
   }) {
     return EncryptionPlugin(
       key: KeyUtils.generateKey(),
@@ -124,6 +140,8 @@ class EncryptionPlugin {
       enableDecrypt: enableDecrypt,
       enableCache: enableCache,
       maxCacheSize: maxCacheSize,
+      onDecryptSuccess: onDecryptSuccess,
+      onDecryptFailure: onDecryptFailure,
     );
   }
 
@@ -244,6 +262,11 @@ class EncryptionPlugin {
           // JSON decode to restore original value type
           final decryptedValue = jsonDecode(decryptedJson);
 
+          // Notify success handlers
+          for (final handler in onDecryptSuccess) {
+            handler(cacheKey, decryptedValue);
+          }
+
           // Cache the result with LRU eviction
           if (enableCache && cacheKey != null) {
             // Evict oldest entries if cache is full
@@ -263,6 +286,10 @@ class EncryptionPlugin {
             ),
           );
         } catch (e) {
+          // Notify failure handlers
+          for (final handler in onDecryptFailure) {
+            handler(cacheKey, e);
+          }
           return HiPanic('Decryption failed: $e');
         }
       },

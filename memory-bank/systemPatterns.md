@@ -84,12 +84,20 @@ class EncryptionPlugin {
   final EncryptionAlgorithm algorithm;
   final List<String> writeEvents;
   final List<String> readEvents;
+  final bool enableCache;
+  final int maxCacheSize;
+  final List<void Function(String? key, dynamic value)> onDecryptSuccess;
+  final List<void Function(String? key, Object error)> onDecryptFailure;
 
   EncryptionPlugin({
     required this.key,
     this.algorithm = EncryptionAlgorithm.cbc,
     this.writeEvents = const ['write', 'put'],
     this.readEvents = const ['read', 'get'],
+    this.enableCache = true,
+    this.maxCacheSize = 1000,
+    this.onDecryptSuccess = const [],
+    this.onDecryptFailure = const [],
   });
   
   /// Auto-generate a new key
@@ -153,3 +161,13 @@ handler: (payload, ctx) {
 2. **Base64 for storage**: Encrypted bytes stored as base64 strings
 3. **String values only**: Only encrypts String payload values
 4. **Passthrough for other types**: Non-strings pass through unchanged
+
+## Pattern Details
+
+Detailed flow documentation in `details/`:
+
+- [Handler Callbacks](details/sp_pattern_handler_callbacks.md) - onDecryptSuccess/onDecryptFailure flow
+- [Key Rotation](details/sp_pattern_key_rotation.md) - Automatic key rotation on failure
+- [LRU Cache](details/sp_pattern_lru_cache.md) - Decryption cache with invalidation
+- [Encryption Flow](details/sp_pattern_encryption_flow.md) - Complete encrypt/decrypt data flow
+- [HiPanic Behavior](details/sp_pattern_hipanic.md) - How HiPanic returns results (doesn't throw)

@@ -8,32 +8,42 @@
 | 1. Understand | ✅ Complete | Memory bank initialized |
 | 2. Clarify | ✅ Complete | Pure Dart, hihook plugin pattern |
 | 3. Design | ✅ Complete | Following Base64Plugin pattern |
-| 4. Implement | ✅ Complete | 86 tests passing |
-| 5. Validate | ✅ Complete | Example working with hivehook |
+| 4. Implement | ✅ Complete | 100 tests passing |
+| 5. Validate | ✅ Complete | Key rotation demo working |
 
 ## Summary
 
-hivehook_encryption is a **pure Dart hihook plugin** that provides AES-256 encryption/decryption for payload values. It works with any hihook-based storage adapter (like hivehook).
+hivehook_encryption is a **pure Dart hihook plugin** that provides AES-256 encryption/decryption for payload values with handler callbacks for key rotation.
 
-### Key Fix (2026-02-02)
+### Latest Updates (2026-02-07)
 
-Fixed hivehook's `HHive.get()` to load stored value BEFORE passing through hook pipeline. This enables post-phase hooks (like decryption) to transform the value.
+1. **Handler Callbacks**: Added `onDecryptSuccess` and `onDecryptFailure` lists to EncryptionPlugin
+2. **Key Rotation Demo**: Complete example showing automatic key rotation on decrypt failure
+3. **Multi-file Example**: Refactored example into modular structure
 
 ## What's Done
 
-### Core Utilities (Pure Dart)
+### Core Features
+- [x] AES-256-CBC and AES-256-GCM encryption
+- [x] Key generation and validation utilities
+- [x] LRU cache for decrypted values
+- [x] JSON encoding for any serializable type
+- [x] Handler callbacks for decrypt success/failure
+
+### Files
 - [x] `lib/src/exceptions.dart` - EncryptionException, InvalidKeyException
 - [x] `lib/src/key_utils.dart` - Key generation and validation
-- [x] `lib/src/algorithms/aes_cbc.dart` - AES-256-CBC encryption
-- [x] `lib/src/algorithms/aes_gcm.dart` - AES-256-GCM encryption
-
-### HiHook Plugin Integration
+- [x] `lib/src/algorithms/aes_cbc.dart` - AES-256-CBC
+- [x] `lib/src/algorithms/aes_gcm.dart` - AES-256-GCM
 - [x] `lib/src/encryption_hook.dart` - encryptHook() / decryptHook()
 - [x] `lib/src/encryption_plugin.dart` - EncryptionPlugin class
-- [x] `lib/hivehook_encryption.dart` - Public exports
 
-### Working Example
-- [x] `example/example.dart` - Demonstrates hivehook + encryption
+### Example App (Key Rotation Demo)
+- [x] `example/lib/main.dart` - Entry point
+- [x] `example/lib/src/encryption_service.dart` - Core rotation logic
+- [x] `example/lib/src/key_rotation_demo_page.dart` - UI
+- [x] `example/lib/src/log_entry.dart` - Log model
+- [x] `example/lib/src/widgets/` - Reusable widgets
 
 ## Test Coverage
 
@@ -44,8 +54,8 @@ Fixed hivehook's `HHive.get()` to load stored value BEFORE passing through hook 
 | AesCbc | 15 | ✅ Pass |
 | AesGcm | 16 | ✅ Pass |
 | encryption_hook | 25 | ✅ Pass |
-| encryption_plugin | 11 | ✅ Pass |
-| **Total** | **86** | ✅ All Pass |
+| encryption_plugin | 28 | ✅ Pass |
+| **Total** | **100** | ✅ All Pass |
 
 ## Dependencies
 
